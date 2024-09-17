@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# This file confirms the SNP effect 
+# This file confirms the SNP effect and saves a table with effect
 #
 ##############################################################################
 
