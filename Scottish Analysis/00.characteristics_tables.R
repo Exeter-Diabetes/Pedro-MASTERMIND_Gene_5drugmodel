@@ -10,6 +10,11 @@ library(tidyverse)
 library(tableone)
 
 ######
+
+##
+## Change this line of code to load the Scottish dataset
+##
+
 # load dataset
 original.dataset <- readRDS("../Synthetic Data/full.synth.dataset.rds")
 
@@ -55,6 +60,6 @@ table_characteristics_print <- print(
 )
 
 # save the table into an excel file. Currently, it will save in the working directory.
-write.csv(table_characteristics_print, file = "table_characteristics.csv")
+write.csv(table_characteristics_print, file = "00.table_characteristics.csv")
 
 
