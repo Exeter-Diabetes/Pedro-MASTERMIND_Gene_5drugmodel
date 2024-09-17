@@ -6,12 +6,12 @@ load("/slade/CPRD_data/mastermind_2022/John/data/fivedrugmodel_5knot.Rdata")
 
 
 interim.dataset <- match.t %>%
-  select(sex, t2dmduration, prebmi, prehba1c, agetx, prealt, preegfr, pretotalcholesterol, prehdl, ethnicity, smoke, imd5, hba1cmonth, ncurrtx, drugline, drugclass, posthba1cfinal) %>%
+  select(sex, t2dmduration, prebmi, prehba1c, agetx, prealt, preegfr, pretotalcholesterol, prehdl, ethnicity, smoke, imd5, hba1cmonth, ncurrtx, drugline, drugclass, yrdrugstart, posthba1cfinal) %>%
   drop_na() %>%
   sample_n(10000)
 
 
-predict(m1.5, test, conf.int = 0.95)
+predict(m1.5, interim.dataset, conf.int = 0.95)
 
 
 
