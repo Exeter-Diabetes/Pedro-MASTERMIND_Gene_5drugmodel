@@ -83,6 +83,7 @@ output_table <- as.data.frame(
     "mean" = "."
   )
 
+# save the file - change name appropriately
 saveRDS(output_table, "01.snp_effect_SU_CYP2C92.rds")
 
 
