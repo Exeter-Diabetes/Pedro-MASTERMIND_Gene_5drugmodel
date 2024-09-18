@@ -38,7 +38,8 @@ interim.dataset <- original.dataset %>%
   # Filter to only analysis patients with SU
   filter(drugclass == "SU") %>%
   
-  # The code below create the variable since the synthetic dataset does not have it
+  # The code below create the variable since the synthetic dataset does not have it 
+  #   (remove after renaming the column with line below)
   mutate(testing_SNP = rep(c(0, 1), each = n()/2))
 
   # # The code below renames the existing column, replace '_____' with the actual column
@@ -84,7 +85,12 @@ output_table <- as.data.frame(
   )
 
 # save the file - change name appropriately
+## Original format is 
+##  - '01.snp_effect' helps distinguish the results tables
+##  - '_SU' helps understand if there is any filtering of patients (replace as needed)
+##  - '_CYP2C92' helps understand the SNP being tested (replace as needed)
+##  - '.rds' is the file format
 saveRDS(output_table, "01.snp_effect_SU_CYP2C92.rds")
 
-
+######
 
