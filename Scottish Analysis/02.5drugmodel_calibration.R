@@ -21,70 +21,86 @@ original.dataset <- readRDS("../Synthetic Data/full.synth.dataset.rds")
 # load the model
 load("../fivedrugmodel_5knot_share_20230823.Rdata")  # name: m1.5.final
 
-######
-# Function for doing the concordant vs discordant validation
-conc_disc_validation_function <- function(data, drug_col, group_num, benefit_col) {
-  
-  # split benefit into groups
-  interim.data <- data %>%
-    mutate(
-      quantile = ntile(data %>% select(all_of(benefit_col)), group_num)
-    )
-  
-  # initiate vectors for values
-  coef <- rep(0, group_num)
-  coef_low <- rep(0, group_num)
-  coef_high <- rep(0, group_num)
-  mean <- rep(0, group_num)
-  
-  # iterate through each group
-  for (i in 1:group_num) {
-    
-    # select patients in this group
-    group.data <- interim.data %>%
-      filter(quantile == i)
-    
-    # calculate the mean benefit for this group
-    mean[i] <- mean(group.data %>% select(all_of(benefit_col)) %>% unlist(), na.rm = TRUE)
-    
-    # fit the regression
-    ########## Need to check whether the categorical variables are elements, otherwise remove
-    formula <- as.formula(paste0("posthba1cfinal ~ ", drug_col ," + sex + t2dmduration + prebmi + prehba1c + agetx + 
-                prealt + preegfr + pretotalcholesterol + prehdl + ethnicity + smoke + imd5 + 
-                hba1cmonth + ncurrtx + drugline"))
-    
-    lm <- glm(formula, data = group.data)
-    
-    # add coefficients
-    coef[i] <- coef(lm)[2]
-    coef_low[i] <- confint(lm)[2,1]
-    coef_high[i] <- confint(lm)[2,2]
-    
-  }
-  
-  # return output
-  return(data.frame(mean, coef, coef_low, coef_high))
-  
-}
+# load functions
+source("functions.R")
 
 
 ######
-
-
-# Make predictions for each treatment for all patients
-interim.dataset <- original.dataset %>%
-  cbind(
-    pred.SGLT2 = predict(m1.5.final, original.dataset %>% mutate(drugclass = "SGLT2")),
-    pred.GLP1 = predict(m1.5.final, original.dataset %>% mutate(drugclass = "GLP1")),
-    pred.DPP4 = predict(m1.5.final, original.dataset %>% mutate(drugclass = "DPP4")),
-    pred.SU = predict(m1.5.final, original.dataset %>% mutate(drugclass = "SU")),
-    pred.TZD = predict(m1.5.final, original.dataset %>% mutate(drugclass = "TZD"))
-  )
 
 
 ######
 # Intercept vs Intercept + Slope vs Nothing test
 
+## SGLT2
+closed_loop_test_results_SGLT2 <- closedtest_continuous_function(
+  cohort = "SGLT2 subcohort",
+  dataset = original.dataset %>% filter(drugclass == "SGLT2"),
+  original_model = m1.5.final,
+  outcome_name = "posthba1cfinal",
+  p_value = 0.05
+)
+
+### save object
+saveRDS(closed_loop_test_results_SGLT2, "02.closed_loop_test_results_SGLT2.rds")
+
+## GLP1
+closed_loop_test_results_GLP1 <- closedtest_continuous_function(
+  cohort = "GLP1 subcohort",
+  dataset = original.dataset %>% filter(drugclass == "GLP1"),
+  original_model = m1.5.final,
+  outcome_name = "posthba1cfinal",
+  p_value = 0.05
+)
+
+### save object
+saveRDS(closed_loop_test_results_GLP1, "02.closed_loop_test_results_GLP1.rds")
+
+## DPP4
+closed_loop_test_results_DPP4 <- closedtest_continuous_function(
+  cohort = "DPP4 subcohort",
+  dataset = original.dataset %>% filter(drugclass == "DPP4"),
+  original_model = m1.5.final,
+  outcome_name = "posthba1cfinal",
+  p_value = 0.05
+)
+
+### save object
+saveRDS(closed_loop_test_results_DPP4, "02.closed_loop_test_results_DPP4.rds")
+
+## SU
+closed_loop_test_results_SU <- closedtest_continuous_function(
+  cohort = "SU subcohort",
+  dataset = original.dataset %>% filter(drugclass == "SU"),
+  original_model = m1.5.final,
+  outcome_name = "posthba1cfinal",
+  p_value = 0.05
+)
+
+### save object
+saveRDS(closed_loop_test_results_SU, "02.closed_loop_test_results_SU.rds")
+
+## TZD
+closed_loop_test_results_TZD <- closedtest_continuous_function(
+  cohort = "TZD subcohort",
+  dataset = original.dataset %>% filter(drugclass == "TZD"),
+  original_model = m1.5.final,
+  outcome_name = "posthba1cfinal",
+  p_value = 0.05
+)
+
+### save object
+saveRDS(closed_loop_test_results_TZD, "02.closed_loop_test_results_TZD.rds")
+
+
+# Make predictions for each treatment for all patients
+interim.dataset <- original.dataset %>%
+  cbind(
+    pred.SGLT2 = predict_with_modelchoice_function(test_results_SGLT2, original.dataset %>% mutate(drugclass = "SGLT2")),
+    pred.GLP1 = predict_with_modelchoice_function(test_results_GLP1, original.dataset %>% mutate(drugclass = "GLP1")),
+    pred.DPP4 = predict_with_modelchoice_function(test_results_DPP4, original.dataset %>% mutate(drugclass = "DPP4")),
+    pred.SU = predict_with_modelchoice_function(test_results_SU, original.dataset %>% mutate(drugclass = "SU")),
+    pred.TZD = predict_with_modelchoice_function(test_results_TZD, original.dataset %>% mutate(drugclass = "TZD"))
+  )
 
 
 
