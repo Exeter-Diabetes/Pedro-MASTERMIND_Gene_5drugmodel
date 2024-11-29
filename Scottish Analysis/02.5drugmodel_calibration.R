@@ -95,11 +95,11 @@ saveRDS(closed_loop_test_results_TZD, "02.closed_loop_test_results_TZD.rds")
 # Make predictions for each treatment for all patients
 interim.dataset <- original.dataset %>%
   cbind(
-    pred.SGLT2 = predict_with_modelchoice_function(test_results_SGLT2, original.dataset %>% mutate(drugclass = "SGLT2")),
-    pred.GLP1 = predict_with_modelchoice_function(test_results_GLP1, original.dataset %>% mutate(drugclass = "GLP1")),
-    pred.DPP4 = predict_with_modelchoice_function(test_results_DPP4, original.dataset %>% mutate(drugclass = "DPP4")),
-    pred.SU = predict_with_modelchoice_function(test_results_SU, original.dataset %>% mutate(drugclass = "SU")),
-    pred.TZD = predict_with_modelchoice_function(test_results_TZD, original.dataset %>% mutate(drugclass = "TZD"))
+    pred.SGLT2 = predict_with_modelchoice_function(closed_loop_test_results_SGLT2, original.dataset %>% mutate(drugclass = "SGLT2")),
+    pred.GLP1 = predict_with_modelchoice_function(closed_loop_test_results_GLP1, original.dataset %>% mutate(drugclass = "GLP1")),
+    pred.DPP4 = predict_with_modelchoice_function(closed_loop_test_results_DPP4, original.dataset %>% mutate(drugclass = "DPP4")),
+    pred.SU = predict_with_modelchoice_function(closed_loop_test_results_SU, original.dataset %>% mutate(drugclass = "SU")),
+    pred.TZD = predict_with_modelchoice_function(closed_loop_test_results_TZD, original.dataset %>% mutate(drugclass = "TZD"))
   )
 
 
@@ -176,102 +176,112 @@ drugs = c("SGLT2", "GLP1", "TZD", "SU", "DPP4")
 # SGLT2 vs GLP1
 combination.interim <- interim.dataset %>%
   filter(drugclass %in% c("SGLT2", "GLP1")) %>%
+  mutate(drugclass = factor(drugclass, levels = c("GLP1", "SGLT2"))) %>%
   mutate(
     benefit = pred.SGLT2 - pred.GLP1
   )
 
-SGLT2_GLP1_5_conc_disc_object <- conc_disc_validation_function(interim.dataset , "drugclass", 5, "benefit")
-SGLT2_GLP1_3_conc_disc_object <- conc_disc_validation_function(interim.dataset , "drugclass", 3, "benefit")
+SGLT2_GLP1_5_conc_disc_object <- conc_disc_validation_function(combination.interim , "drugclass", 5, "benefit")
+SGLT2_GLP1_3_conc_disc_object <- conc_disc_validation_function(combination.interim , "drugclass", 3, "benefit")
 
 # SGLT2 vs TZD
 combination.interim <- interim.dataset %>%
   filter(drugclass %in% c("SGLT2", "TZD")) %>%
+  mutate(drugclass = factor(drugclass, levels = c("TZD", "SGLT2"))) %>%
   mutate(
     benefit = pred.SGLT2 - pred.TZD
   )
 
-SGLT2_TZD_5_conc_disc_object <- conc_disc_validation_function(interim.dataset , "drugclass", 5, "benefit")
-SGLT2_TZD_3_conc_disc_object <- conc_disc_validation_function(interim.dataset , "drugclass", 3, "benefit")
+SGLT2_TZD_5_conc_disc_object <- conc_disc_validation_function(combination.interim , "drugclass", 5, "benefit")
+SGLT2_TZD_3_conc_disc_object <- conc_disc_validation_function(combination.interim , "drugclass", 3, "benefit")
 
 # SGLT2 vs SU
 combination.interim <- interim.dataset %>%
   filter(drugclass %in% c("SGLT2", "SU")) %>%
+  mutate(drugclass = factor(drugclass, levels = c("SU", "SGLT2"))) %>%
   mutate(
     benefit = pred.SGLT2 - pred.SU
   )
 
-SGLT2_SU_5_conc_disc_object <- conc_disc_validation_function(interim.dataset , "drugclass", 5, "benefit")
-SGLT2_SU_3_conc_disc_object <- conc_disc_validation_function(interim.dataset , "drugclass", 3, "benefit")
+SGLT2_SU_5_conc_disc_object <- conc_disc_validation_function(combination.interim , "drugclass", 5, "benefit")
+SGLT2_SU_3_conc_disc_object <- conc_disc_validation_function(combination.interim , "drugclass", 3, "benefit")
 
 # SGLT2 vs DPP4
 combination.interim <- interim.dataset %>%
   filter(drugclass %in% c("SGLT2", "DPP4")) %>%
+  mutate(drugclass = factor(drugclass, levels = c("DPP4", "SGLT2"))) %>%
   mutate(
     benefit = pred.SGLT2 - pred.DPP4
   )
 
-SGLT2_DPP4_5_conc_disc_object <- conc_disc_validation_function(interim.dataset , "drugclass", 5, "benefit")
-SGLT2_DPP4_3_conc_disc_object <- conc_disc_validation_function(interim.dataset , "drugclass", 3, "benefit")
+SGLT2_DPP4_5_conc_disc_object <- conc_disc_validation_function(combination.interim , "drugclass", 5, "benefit")
+SGLT2_DPP4_3_conc_disc_object <- conc_disc_validation_function(combination.interim , "drugclass", 3, "benefit")
 
 # GLP1 vs TZD
 combination.interim <- interim.dataset %>%
   filter(drugclass %in% c("GLP1", "TZD")) %>%
+  mutate(drugclass = factor(drugclass, levels = c("TZD", "GLP1"))) %>%
   mutate(
     benefit = pred.GLP1 - pred.TZD
   )
 
-GLP1_TZD_5_conc_disc_object <- conc_disc_validation_function(interim.dataset , "drugclass", 5, "benefit")
-GLP1_TZD_3_conc_disc_object <- conc_disc_validation_function(interim.dataset , "drugclass", 3, "benefit")
+GLP1_TZD_5_conc_disc_object <- conc_disc_validation_function(combination.interim , "drugclass", 5, "benefit")
+GLP1_TZD_3_conc_disc_object <- conc_disc_validation_function(combination.interim , "drugclass", 3, "benefit")
 
 # GLP1 vs SU
 combination.interim <- interim.dataset %>%
   filter(drugclass %in% c("GLP1", "SU")) %>%
+  mutate(drugclass = factor(drugclass, levels = c("SU", "GLP1"))) %>%
   mutate(
     benefit = pred.GLP1 - pred.SU
   )
 
-GLP1_SU_5_conc_disc_object <- conc_disc_validation_function(interim.dataset , "drugclass", 5, "benefit")
-GLP1_SU_3_conc_disc_object <- conc_disc_validation_function(interim.dataset , "drugclass", 3, "benefit")
+GLP1_SU_5_conc_disc_object <- conc_disc_validation_function(combination.interim , "drugclass", 5, "benefit")
+GLP1_SU_3_conc_disc_object <- conc_disc_validation_function(combination.interim , "drugclass", 3, "benefit")
 
 # GLP1 vs DPP4
 combination.interim <- interim.dataset %>%
   filter(drugclass %in% c("GLP1", "DPP4")) %>%
+  mutate(drugclass = factor(drugclass, levels = c("DPP4", "GLP1"))) %>%
   mutate(
     benefit = pred.GLP1 - pred.DPP4
   )
 
-GLP1_DPP4_5_conc_disc_object <- conc_disc_validation_function(interim.dataset , "drugclass", 5, "benefit")
-GLP1_DPP4_3_conc_disc_object <- conc_disc_validation_function(interim.dataset , "drugclass", 3, "benefit")
+GLP1_DPP4_5_conc_disc_object <- conc_disc_validation_function(combination.interim , "drugclass", 5, "benefit")
+GLP1_DPP4_3_conc_disc_object <- conc_disc_validation_function(combination.interim , "drugclass", 3, "benefit")
 
 # TZD vs SU
 combination.interim <- interim.dataset %>%
   filter(drugclass %in% c("TZD", "SU")) %>%
+  mutate(drugclass = factor(drugclass, levels = c("SU", "TZD"))) %>%
   mutate(
     benefit = pred.TZD - pred.SU
   )
 
-TZD_SU_5_conc_disc_object <- conc_disc_validation_function(interim.dataset , "drugclass", 5, "benefit")
-TZD_SU_3_conc_disc_object <- conc_disc_validation_function(interim.dataset , "drugclass", 3, "benefit")
+TZD_SU_5_conc_disc_object <- conc_disc_validation_function(combination.interim , "drugclass", 5, "benefit")
+TZD_SU_3_conc_disc_object <- conc_disc_validation_function(combination.interim , "drugclass", 3, "benefit")
 
 # TZD vs DPP4
 combination.interim <- interim.dataset %>%
   filter(drugclass %in% c("TZD", "DPP4")) %>%
+  mutate(drugclass = factor(drugclass, levels = c("DPP4", "TZD"))) %>%
   mutate(
     benefit = pred.TZD - pred.DPP4
   )
 
-TZD_DPP4_5_conc_disc_object <- conc_disc_validation_function(interim.dataset , "drugclass", 5, "benefit")
-TZD_DPP4_3_conc_disc_object <- conc_disc_validation_function(interim.dataset , "drugclass", 3, "benefit")
+TZD_DPP4_5_conc_disc_object <- conc_disc_validation_function(combination.interim , "drugclass", 5, "benefit")
+TZD_DPP4_3_conc_disc_object <- conc_disc_validation_function(combination.interim , "drugclass", 3, "benefit")
 
 # SU vs DPP4
 combination.interim <- interim.dataset %>%
   filter(drugclass %in% c("SU", "DPP4")) %>%
+  mutate(drugclass = factor(drugclass, levels = c("DPP4", "SU"))) %>%
   mutate(
     benefit = pred.SU - pred.DPP4
   )
 
-SU_DPP4_5_conc_disc_object <- conc_disc_validation_function(interim.dataset , "drugclass", 5, "benefit")
-SU_DPP4_3_conc_disc_object <- conc_disc_validation_function(interim.dataset , "drugclass", 3, "benefit")
+SU_DPP4_5_conc_disc_object <- conc_disc_validation_function(combination.interim , "drugclass", 5, "benefit")
+SU_DPP4_3_conc_disc_object <- conc_disc_validation_function(combination.interim , "drugclass", 3, "benefit")
 
 
 # Plot
