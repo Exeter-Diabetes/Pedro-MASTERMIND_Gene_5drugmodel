@@ -237,51 +237,9 @@ for (i in 1:group_num) {
 }
 
 overall_calibration_table <- data.frame(mean, coef, coef_low, coef_high, 
-                           n = n_vector, 
-                           total_conc = interim.dataset %>% filter(conc_disc_label == "Concordant") %>% nrow(),
-                           total_disconc = interim.dataset %>% filter(conc_disc_label == "Discordant") %>% nrow())
-
-
-
-
-
-
-
-# for (i in 1:nrow(interim.dataset)) {
-#   
-#   if (interim.dataset$conc_disc_label[i] == "Concordant") {
-#     # If patient is concordant
-#     ## Add predicted benefit
-#     interim.dataset$benefit[i] <- interim.dataset$second_best_drug_value[i] - interim.dataset$first_best_drug_value[i]
-#     
-#   } else {
-#     # If patient is discordant
-#     ## drug taken
-#     drug_taken = interim.dataset$drugclass[i]
-#     ## column needed for benefit calculation
-#     column_name = paste0("pred.", drug_taken)
-#     ## Add predicted benefit
-#     interim.dataset$benefit[i] <- interim.dataset %>% select(all_of(column_name)) %>% slice(i) %>% unlist() - interim.dataset$first_best_drug_value[i]
-#     
-#   }
-#   
-# }
-# 
-# # add grouping variable = this can be changed to include more or less groups
-# interim.dataset <- interim.dataset %>%
-#   mutate(
-#     quantile = ntile(benefit, 5)
-#   )
-# 
-# # Running function for overall tests
-# overall_10_conc_disc_object <- conc_disc_validation_function(interim.dataset, "conc_disc_label", 10, "benefit")
-# overall_5_conc_disc_object <- conc_disc_validation_function(interim.dataset, "conc_disc_label", 5, "benefit")
-# overall_3_conc_disc_object <- conc_disc_validation_function(interim.dataset, "conc_disc_label", 3, "benefit")
-
-
-
-
-
+                                        n = n_vector, 
+                                        total_conc = interim.dataset %>% filter(conc_disc_label == "Concordant") %>% nrow(),
+                                        total_disconc = interim.dataset %>% filter(conc_disc_label == "Discordant") %>% nrow())
 
 
 
@@ -415,29 +373,18 @@ SU_DPP4_3_conc_disc_object <- conc_disc_validation_function(combination.interim 
 #   theme_bw()
 
 # Output files
-output_table <- overall_10_conc_disc_object %>%
-  mutate(grouping = 10) %>%
+output_table <- SGLT2_GLP1_5_conc_disc_object %>%
+  mutate(grouping = 5) %>%
   rbind(
-    overall_5_conc_disc_object %>%
-      mutate(grouping = 5),
-    overall_3_conc_disc_object %>%
+    SGLT2_GLP1_3_conc_disc_object %>%
       mutate(grouping = 3)
   ) %>%
   mutate(
-    drug1 = "Concordant",
-    drug2 = "Discordant"
+    drug1 = "SGLT2",
+    drug2 = "GLP1"
   ) %>%
   rbind(
-    rbind(
-      SGLT2_GLP1_5_conc_disc_object %>%
-        mutate(grouping = 5),
-      SGLT2_GLP1_3_conc_disc_object %>%
-        mutate(grouping = 3)
-    ) %>%
-      mutate(
-        drug1 = "SGLT2",
-        drug2 = "GLP1"
-      ),
+    
     rbind(
       SGLT2_TZD_5_conc_disc_object %>%
         mutate(grouping = 5),
