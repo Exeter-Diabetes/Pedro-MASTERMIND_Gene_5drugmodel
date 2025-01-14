@@ -27,7 +27,6 @@ conc_disc_validation_function <- function(data, drug_col, group_num, benefit_col
   
   # iterate through each group
   for (i in 1:group_num) {
-    
     # select patients in this group
     group.data <- interim.data %>%
       filter(quantile == i)
@@ -36,18 +35,34 @@ conc_disc_validation_function <- function(data, drug_col, group_num, benefit_col
     mean[i] <- mean(group.data %>% select(all_of(benefit_col)) %>% unlist(), na.rm = TRUE)
     
     # fit the regression
-    ########## Need to check whether the categorical variables are elements, otherwise remove
-    formula <- as.formula(paste0("posthba1cfinal ~ ", drug_col ," + sex + t2dmduration + prebmi + prehba1c + agetx + 
-                prealt + preegfr + pretotalcholesterol + prehdl + ethnicity + smoke + imd5 + 
-                hba1cmonth + ncurrtx + drugline"))
-    
-    lm <- glm(formula, data = group.data)
-    
-    # add coefficients
-    coef[i] <- coef(lm)[2]
-    coef_low[i] <- confint(lm)[2,1]
-    coef_high[i] <- confint(lm)[2,2]
-    
+    if (length(unique(group.data %>% select(all_of(drug_col)) %>% unlist())) > 1) {
+      
+      formula <- paste0("posthba1cfinal ~", drug_col, "+ t2dmduration + prebmi + prehba1c + agetx + prealt + preegfr + pretotalcholesterol + prehdl + hba1cmonth")
+      
+      cat_vars <- c("sex", "smoke", "imd5", "ncurrtx", "drugline")
+      for (var in cat_vars) {
+        
+        if (length(unique(group.data %>% select(all_of(var)) %>% unlist())) > 1) {
+          formula <- paste0(formula, "+", var)
+        }
+        
+      }
+      
+      lm <- glm(as.formula(formula), data = group.data)
+      
+      # add coefficients
+      coef[i] <- coef(lm)[2]
+      coef_low[i] <- confint(lm)[2,1]
+      coef_high[i] <- confint(lm)[2,2]
+      
+      
+    } else {
+      
+      coef[i] <- NA
+      coef_low[i] <- NA
+      coef_high[i] <- NA
+      
+    }
   }
   
   # return output
