@@ -8,6 +8,7 @@
 # load libraries
 library(tidyverse)
 library(rms)
+library(MatchIt)
 
 ######
 
@@ -100,6 +101,12 @@ interim.dataset <- original.dataset %>%
     pred.DPP4 = predict_with_modelchoice_function(closed_loop_test_results_DPP4, original.dataset %>% mutate(drugclass = "DPP4")),
     pred.SU = predict_with_modelchoice_function(closed_loop_test_results_SU, original.dataset %>% mutate(drugclass = "SU")),
     pred.TZD = predict_with_modelchoice_function(closed_loop_test_results_TZD, original.dataset %>% mutate(drugclass = "TZD"))
+  ) %>%
+  mutate(
+    pred.current = ifelse(drugclass == "SGLT2", pred.SGLT2,
+                          ifelse(drugclass == "GLP1", pred.GLP1,
+                                 ifelse(drugclass == "DPP4", pred.DPP4,
+                                        ifelse(drugclass == "SU", pred.SU, pred.TZD))))
   )
 
 
@@ -128,45 +135,157 @@ for (i in 1:nrow(interim.dataset)) {
 # add concordant vs discordant label
 interim.dataset <- interim.dataset %>%
   mutate(
-    conc_disc_label = ifelse(drugclass == first_best_drug_name, "Concordant", "Discordant")
+    conc_disc_label = ifelse(drugclass == first_best_drug_name, "Concordant", "Discordant"),
+    conc_disc_label_numeric = ifelse(drugclass == first_best_drug_name, 1, 0),
+    hba1c_group_percentile = cut(prehba1c, quantile(prehba1c, prob = 0:20 / 20, names = FALSE), include = TRUE)
   )
 
-# calculate benefit
-## If concordant:
-##  - Patient took best drug, therefore compare best 1 vs best 2
-## If discordant:
-##  - Patient took something else, therefore compare drug taken vs best 1
 
-for (i in 1:nrow(interim.dataset)) {
+# calculate benefit as overall measure 
+## Take patient A (concordant) and patient B (discordant)
+## To calculate predicted benefit (x-axis)
+### Take the difference of predicted benefit (for patient A) on drug taken by patient A 
+###   and predicted benefit (for patient A) on drug taken by patient B.
+## To calculate observed benefit* (y-axis)
+### Take the difference of observed response for Patient A and observed response for Patient B.
+
+
+# check the formula for matching (only keep categorical variables with two or more unique values)
+formula <- paste0("conc_disc_label_numeric ~ t2dmduration + prebmi + agetx + prealt + preegfr + pretotalcholesterol + prehdl")
+
+cat_vars <- c("smoke", "imd5", "ncurrtx", "drugline")
+for (var in cat_vars) {
   
-  if (interim.dataset$conc_disc_label[i] == "Concordant") {
-    # If patient is concordant
-    ## Add predicted benefit
-    interim.dataset$benefit[i] <- interim.dataset$second_best_drug_value[i] - interim.dataset$first_best_drug_value[i]
-    
-  } else {
-    # If patient is discordant
-    ## drug taken
-    drug_taken = interim.dataset$drugclass[i]
-    ## column needed for benefit calculation
-    column_name = paste0("pred.", drug_taken)
-    ## Add predicted benefit
-    interim.dataset$benefit[i] <- interim.dataset %>% select(all_of(column_name)) %>% slice(i) %>% unlist() - interim.dataset$first_best_drug_value[i]
-    
+  if (length(unique(interim.dataset %>% select(all_of(var)) %>% unlist())) > 1) {
+    formula <- paste0(formula, "+", var)
   }
   
 }
 
-# add grouping variable = this can be changed to include more or less groups
-interim.dataset <- interim.dataset %>%
+## Matching model
+matching_model <- MatchIt::matchit(
+  formula = as.formula(formula),
+  data = interim.dataset,
+  method = "nearest",
+  distance = "mahalanobis", # try this next
+  replace = TRUE,
+  
+  # caliper = 0.05,
+  # antiexact = c("drugclass"),
+  exact = c("sex", "hba1c_group_percentile", "first_best_drug_name")
+)
+
+
+# Number of groupings (edit this number depending on the number of concordant/discordant pairs you have (usually about 100 per group, more is better))
+group_num = 5
+
+
+
+# matched dataset
+matched_interim.dataset <- MatchIt::get_matches(matching_model, data = interim.dataset)
+
+matched_interim.dataset <- matched_interim.dataset %>%
+  group_by(subclass) %>%
   mutate(
-    quantile = ntile(benefit, 5)
+    discordant_drugclass = paste(drugclass[2], collapse = ","),
+    calibration_obs = diff(posthba1cfinal)
+  ) %>%
+  ungroup() %>%
+  distinct(subclass, .keep_all = TRUE) %>%
+  mutate(
+    calibration_interim = ifelse(discordant_drugclass == "SGLT2", pred.SGLT2, 
+                                 ifelse(discordant_drugclass == "DPP4", pred.DPP4, 
+                                        ifelse(discordant_drugclass == "GLP1", pred.GLP1, 
+                                               ifelse(discordant_drugclass == "SU", pred.SU, pred.TZD)))),
+    calibration_pred = calibration_interim - pred.current
+  ) %>%
+  select(calibration_pred, calibration_obs) %>%
+  mutate(
+    grouping = as.numeric(cut(calibration_pred, unique(quantile(calibration_pred, prob = 0:group_num / group_num, names = FALSE)), include = TRUE))
   )
 
-# Running function for overall tests
-overall_10_conc_disc_object <- conc_disc_validation_function(interim.dataset, "conc_disc_label", 10, "benefit")
-overall_5_conc_disc_object <- conc_disc_validation_function(interim.dataset, "conc_disc_label", 5, "benefit")
-overall_3_conc_disc_object <- conc_disc_validation_function(interim.dataset, "conc_disc_label", 3, "benefit")
+
+# initiate vectors for values
+coef <- rep(0, group_num)
+coef_low <- rep(0, group_num)
+coef_high <- rep(0, group_num)
+mean <- rep(0, group_num)
+n_vector <- rep(0, group_num)
+benefit_col <- "calibration_pred"
+# iterate through each group
+for (i in 1:group_num) {
+  
+  # select patients in this group
+  group.data <- matched_interim.dataset %>%
+    filter(grouping == i)
+  
+  # calculate the mean benefit for this group
+  mean[i] <- mean(group.data %>% select(all_of(benefit_col)) %>% unlist(), na.rm = TRUE)
+  
+  lm <- lm(as.formula("calibration_obs ~ calibration_pred"), group.data)
+  
+  
+  # predictions
+  predictions_vector = predict(lm, newdata = data.frame(calibration_pred = mean(group.data %>% select(all_of(benefit_col)) %>% unlist(), na.rm = TRUE)), interval = "confidence")
+  
+  # add coefficients
+  coef[i] <- predictions_vector[1]
+  coef_low[i] <- predictions_vector[2]
+  coef_high[i] <- predictions_vector[3]
+  n_vector[i] <- nrow(group.data)
+  
+}
+
+overall_calibration_table <- data.frame(mean, coef, coef_low, coef_high, 
+                           n = n_vector, 
+                           total_conc = interim.dataset %>% filter(conc_disc_label == "Concordant") %>% nrow(),
+                           total_disconc = interim.dataset %>% filter(conc_disc_label == "Discordant") %>% nrow())
+
+
+
+
+
+
+
+# for (i in 1:nrow(interim.dataset)) {
+#   
+#   if (interim.dataset$conc_disc_label[i] == "Concordant") {
+#     # If patient is concordant
+#     ## Add predicted benefit
+#     interim.dataset$benefit[i] <- interim.dataset$second_best_drug_value[i] - interim.dataset$first_best_drug_value[i]
+#     
+#   } else {
+#     # If patient is discordant
+#     ## drug taken
+#     drug_taken = interim.dataset$drugclass[i]
+#     ## column needed for benefit calculation
+#     column_name = paste0("pred.", drug_taken)
+#     ## Add predicted benefit
+#     interim.dataset$benefit[i] <- interim.dataset %>% select(all_of(column_name)) %>% slice(i) %>% unlist() - interim.dataset$first_best_drug_value[i]
+#     
+#   }
+#   
+# }
+# 
+# # add grouping variable = this can be changed to include more or less groups
+# interim.dataset <- interim.dataset %>%
+#   mutate(
+#     quantile = ntile(benefit, 5)
+#   )
+# 
+# # Running function for overall tests
+# overall_10_conc_disc_object <- conc_disc_validation_function(interim.dataset, "conc_disc_label", 10, "benefit")
+# overall_5_conc_disc_object <- conc_disc_validation_function(interim.dataset, "conc_disc_label", 5, "benefit")
+# overall_3_conc_disc_object <- conc_disc_validation_function(interim.dataset, "conc_disc_label", 3, "benefit")
+
+
+
+
+
+
+
+
+
 
 
 ## treatments being compared
@@ -412,4 +531,5 @@ output_table <- overall_10_conc_disc_object %>%
   )
 
 # save output table
+saveRDS(overall_calibration_table, "02.5drugmodel_overall_calibration.rds")
 saveRDS(output_table, "02.5drugmodel_calibration_conc_disc.rds")
