@@ -32,6 +32,9 @@ source("functions.R")
 ######
 # Intercept vs Intercept + Slope vs Nothing test
 
+## Check these one by one
+## They will inform where any recalibration was done for each of the drugs
+
 ## SGLT2
 closed_loop_test_results_SGLT2 <- closedtest_continuous_function(
   cohort = "SGLT2 subcohort",
@@ -240,6 +243,24 @@ overall_calibration_table <- data.frame(mean, coef, coef_low, coef_high,
                                         n = n_vector, 
                                         total_conc = interim.dataset %>% filter(conc_disc_label == "Concordant") %>% nrow(),
                                         total_disconc = interim.dataset %>% filter(conc_disc_label == "Discordant") %>% nrow())
+
+
+# This is the code for the overall concordant discordant calibration (this uses 1:1 matching)
+plot_concordant_discordant_overall <- overall_calibration_table %>%
+  ggplot(aes(x = mean, y = coef, ymin = coef_low, ymax = coef_high)) +
+  geom_vline(aes(xintercept = 0), linetype = "dashed", colour = "red") +
+  geom_hline(aes(yintercept = 0), linetype = "dashed", colour = "red") +
+  geom_abline(aes(intercept = 0, slope = 1)) +
+  geom_smooth(method = "glm") +
+  geom_errorbar(width = 0.5) +
+  geom_point() +
+  ggtitle("Concordant vs Discordant") +
+  scale_x_continuous("Predicted HbA1c benefit (mmol/mol)") +
+  scale_y_continuous("Observed HbA1c benefit* (mmol/mol)") +
+  theme_bw()
+
+
+
 
 
 
@@ -480,3 +501,22 @@ output_table <- SGLT2_GLP1_5_conc_disc_object %>%
 # save output table
 saveRDS(overall_calibration_table, "02.5drugmodel_overall_calibration.rds")
 saveRDS(output_table, "02.5drugmodel_calibration_conc_disc.rds")
+
+
+
+# plotting code for per drug calibration
+
+plot_drug_vs_drug_calibration <- output_table %>%
+  filter(grouping == 5) %>% # you can change this number to include difference groupings
+  mutate(title = paste(drug1, "vs", drug2)) %>%
+  ggplot(aes(x = mean, y = coef, ymin = coef_low, ymax = coef_high)) +
+  geom_vline(aes(xintercept = 0), linetype = "dashed", colour = "red") +
+  geom_hline(aes(yintercept = 0), linetype = "dashed", colour = "red") +
+  geom_abline(aes(intercept = 0, slope = 1)) +
+  geom_errorbar(width = 0.5) +
+  geom_point() +
+  ggtitle("Drug vs drug calibration") +
+  scale_x_continuous("CATE", limits = c(-15, 15), breaks = seq(-15, 15, 5)) +
+  scale_y_continuous("ATE", limits = c(-15, 15), breaks = seq(-15, 15, 5)) +
+  theme_bw() +
+  facet_wrap(~title, nrow = 2)
